@@ -1,0 +1,11 @@
+Desarrollo de aplicacion 
+
+Version 1.
+
+-Se realiza la interfaz mediante Tkinter 
+-Consulta de datos cargados mediante Excel
+-Graficos obtenidos mediante pyplot 
+
+x Error en la seleccion de datos 
+x Error en la exportacion de datos 
+
