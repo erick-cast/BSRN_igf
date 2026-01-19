@@ -1,14 +1,19 @@
 #Tomamos la funciones previamente creadas y agregamos una interfaz con tkinter
 import pandas as pd 
 import numpy as np 
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import plotly.express as px 
 from tkinter import *
 from tkinter import ttk
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename,asksaveasfilename
 from datetime import datetime
 import tkinter.messagebox as messagebox
+from tkcalendar import DateEntry
 
-#Seleccion de datos 
+plt.style.use("seaborn-v0_8-whitegrid")
+
+#----------------Seleccion de datos------------- 
 def seleccion_datos():
     #Ventana de tkinter
     Tk().withdraw()
@@ -18,15 +23,15 @@ def seleccion_datos():
         filetypes=[("Archivos CSV", "*.csv")]
         
     )
-    #Retorno de la base selccionada
-    df = pd.read_csv(filename)
-    return df
+    if not filename:
+        return None 
+    return pd.read_csv(filename)
 
-#limpieza de datos eliminando los -999.9 y -999.0
-def limpieza(datos):
-    return datos.replace([-999.9,-999.0],np.nan)
+#----------limpieza de datos eliminando los -999.9 y -999.0------
+def limpieza(df):
+    return df.replace([-999.9,-999.0],np.nan)
 
-#preprocesamiento de datos 
+#----------------preprocesamiento de datos------------- 
 def preprocesamiento(df):
    #Convertimos las columna timestamp Formato
    df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'],dayfirst = True)
@@ -49,7 +54,7 @@ def preprocesamiento(df):
        df['percent'] = 0.01*df['sum_SW']
    return df 
 
-#Grupos 
+#--------------------------Grupos--------------------- 
 groups = {
     "1. Parámetros Básicos": ["GLOBAL_Avg","DIRECT_Avg","DIFFUSE_Avg","GH_CALC_Avg","percent"],
     "2. Balance de onda corta": ["GLOBAL_Avg","UPWARD_SW_Avg"],
@@ -60,118 +65,186 @@ groups = {
 }
 
 
-#Insertamos la interfaz de tkinter
+#-----------------Insertamos la interfaz de tkinter-----------
 
 class App:
     def __init__(self,root):
         self.root = root  #iniciamos la ventana
         self.root.title("Visualizador de Datos Solarimétricos") #titulo de la ventana
-        self.root.geometry("600x500") #tamaño de la interfaz
+        self.root.geometry("1400x720") #tamaño de la interfaz
 
         self.df = None
-
-        #Insertando titulo en la interfaz #pack pady es par ala orientacion 
-        Label(root,text="Visualizador de datos",font=("Arial",16,"bold")).pack(pady=10)
-
-        #Seleccion del archivo csv 
-        Button(root, text=" Cargar archivo CSV", command=self.cargar_csv, width=25).pack(pady=10)
-
-        #Abrimos un selector de variabels 
-        Label(root,text="Seleccionar grupo de variables:").pack()
-        self.combo_grupo = ttk.Combobox(root,values=list(groups.keys()),state="readonly", width=40) #readonly es para no escribirlo de manera manual
-        self.combo_grupo.pack(pady=5)
-        self.combo_grupo.bind("<<ComboboxSelected>>",self.actualizar_variables) #bind nos permite arrojar la actualziacion de las variables 
-
-        #Se enlistan las subvariables y se seleccionan mdiante un click
-        Label(root,text="Seleccionar variables (Ctrl + click):").pack()
-        self.listbox_vars = Listbox(root,selectmode=MULTIPLE, width=40, height=7) #seleccionar multiples variables
-        self.listbox_vars.pack(pady=5)
-
-        #Seleccio nde fechas inicio
-        Label(root,text="Fecha inicio (DD/MM/YYYY HH:MM)").pack()
-        self.fecha_inicio = Entry(root,width=25)
-        self.fecha_inicio.pack()
-        #Fecha fin
-        Label(root,text="Fecha fin (DD/MM/YYYY HH:MM)").pack()
-        self.fecha_fin = Entry(root,width=25)
-        self.fecha_fin.pack()
-
-        #Se añade el boton para realizar la grafica
-        Button(root,text=" Graficar",command=self.graficar,width=20).pack(pady=15)
-
-        #Boton para la exportacion
-        Button(root,text=" Exportar CSV",command=self.exportar,width=20).pack()
-    
-    #Interaccion con el usuario se añaden ventanas si el usuario está realziando algo de manera incorrecta 
-    #interaccion carga de archivos y preprocesamiento 
-    
-    def cargar_csv(self):
-        datos = seleccion_datos()
-        if datos is None:
-            return
+        self.df_filtrado = None
+        self.dark = False 
         
-        datos = limpieza(datos)
-        self.df = preprocesamiento(datos)
-        messagebox.showinfo("Éxito","Archivo cargado y procesado correctamente.")
+        #-----------Panel derecho-----------
+        self.sidebar = Frame(root, width=320, bg="#ffffff")
+        self.sidebar.pack(side=LEFT, fill=Y)
 
-   #En caso de no seleccioanr un archivo csv 
-   
+        Label(self.sidebar, text="Visualizador Solarimétrico",
+              font=("Segoe UI", 16, "bold"), bg="#ffffff").pack(pady=15)
+
+        ttk.Button(self.sidebar, text="Cargar CSV", command=self.cargar_csv)\
+            .pack(padx=15, pady=5)
+
+        ttk.Label(self.sidebar, text="Grupo de variables").pack(anchor="w", padx=15)
+        self.combo_grupo = ttk.Combobox(
+            self.sidebar, values=list(groups.keys()), state="readonly", width=30
+        )
+        self.combo_grupo.pack(padx=15, pady=3)
+        self.combo_grupo.bind("<<ComboboxSelected>>", self.actualizar_variables)
+
+        ttk.Label(self.sidebar, text="Variables").pack(anchor="w", padx=15)
+        self.listbox_vars = Listbox(self.sidebar, selectmode=MULTIPLE, height=6, width=32)
+        self.listbox_vars.pack(padx=15, pady=5)
+        self.listbox_vars.bind("<<ListboxSelect>>", lambda e: self.previsualizar())
+
+        #-----------Fechas------
+
+        ttk.Label(self.sidebar, text="Fecha inicio").pack(anchor="w", padx=15)
+        self.fecha_inicio = DateEntry(self.sidebar, width=12)
+        self.fecha_inicio.pack(anchor="w", padx=15)
+        self.fecha_inicio.bind("<<DateEntrySelected>>", lambda e: self.previsualizar())
+
+        frame_ini = Frame(self.sidebar, bg="#ffffff")
+        frame_ini.pack(anchor="w", padx=15)
+
+        self.hora_ini = Spinbox(frame_ini, from_=0, to=23, width=3,
+                                format="%02.0f", command=self.previsualizar)
+        self.min_ini = Spinbox(frame_ini, from_=0, to=59, width=3,
+                               format="%02.0f", command=self.previsualizar)
+
+        self.hora_ini.pack(side=LEFT)
+        Label(frame_ini, text=":", bg="#ffffff").pack(side=LEFT)
+        self.min_ini.pack(side=LEFT)
+
+        ttk.Label(self.sidebar, text="Fecha fin").pack(anchor="w", padx=15, pady=(10,0))
+        self.fecha_fin = DateEntry(self.sidebar, width=12)
+        self.fecha_fin.pack(anchor="w", padx=15)
+        self.fecha_fin.bind("<<DateEntrySelected>>", lambda e: self.previsualizar())
+
+        frame_fin = Frame(self.sidebar, bg="#ffffff")
+        frame_fin.pack(anchor="w", padx=15)
+
+        self.hora_fin = Spinbox(frame_fin, from_=0, to=23, width=3,
+                                format="%02.0f", command=self.previsualizar)
+        self.min_fin = Spinbox(frame_fin, from_=0, to=59, width=3,
+                               format="%02.0f", command=self.previsualizar)
+
+        self.hora_fin.pack(side=LEFT)
+        Label(frame_fin, text=":", bg="#ffffff").pack(side=LEFT)
+        self.min_fin.pack(side=LEFT)
+
+        ttk.Button(self.sidebar, text="Graficar", command=self.grafica_plotly)\
+            .pack(pady=20)
+
+        ttk.Button(self.sidebar, text="Exportar CSV", command=self.exportar_csv)\
+            .pack()     
+        #---------Configuracion----------
+ 
+        self.main = Frame(root, bg="#eef2f7")
+        self.main.pack(side=LEFT, fill=BOTH, expand=True)
+
+        Button(self.main, text="🌙", command=self.toggle_dark)\
+            .pack(anchor="ne", padx=10, pady=5)
+
+        self.fig, self.ax = plt.subplots(figsize=(8, 3))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.main)
+        self.canvas.get_tk_widget().pack(fill=X, padx=10, pady=10)
+
+        self.tree = ttk.Treeview(self.main, show="headings")
+        self.tree.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+     #-------------------Funcionamiento-----
+
+    def cargar_csv(self):
+        df = seleccion_datos()
+        if df is None:
+            return
+        self.df = preprocesamiento(df)
+        messagebox.showinfo("OK", "Datos cargados correctamente")
+
     def actualizar_variables(self, event):
-        grupo = self.combo_grupo.get()
-        self.listbox_vars.delete(0,END)
-        for v in groups[grupo]:
-            self.listbox_vars.insert(END,v)
+        seleccionadas = self.listbox_vars.curselection()
+        self.listbox_vars.delete(0, END)
+        for v in groups[self.combo_grupo.get()]:
+            self.listbox_vars.insert(END, v)
+        for i in seleccionadas:
+            if i < self.listbox_vars.size():
+                self.listbox_vars.selection_set(i)
 
-    def graficar(self):
+    def obtener_filtro(self):
+        inicio = datetime.combine(
+            self.fecha_inicio.get_date(),
+            datetime.strptime(f"{self.hora_ini.get()}:{self.min_ini.get()}", "%H:%M").time()
+        )
+        fin = datetime.combine(
+            self.fecha_fin.get_date(),
+            datetime.strptime(f"{self.hora_fin.get()}:{self.min_fin.get()}", "%H:%M").time()
+        )
+        return self.df[(self.df["TIMESTAMP"] >= inicio) &
+                       (self.df["TIMESTAMP"] <= fin)]
+
+    def previsualizar(self):
         if self.df is None:
-            messagebox.showerror("Error","Primero debes cargar un archivo CSV.")
-            return
-        #selecciones de grupo
-        grupo = self.combo_grupo.get()
-        if not grupo:
-            messagebox.showerror("Error","Selecciona un grupo.")
-            return
-        #seleccion dde variables
-        indices = self.listbox_vars.curselection()
-        if not indices:
-            messagebox.showerror("Error","Selecciona al menos una variable.")
             return
 
-        variables = [self.listbox_vars.get(i) for i in indices]
-
-        #Formato de seleccion de fechas 
-
-        try:
-            inicio_dt = datetime.strptime(self.fecha_inicio.get(),"%d/%m/%Y %H:%M")
-            fin_dt = datetime.strptime(self.fecha_fin.get(),"%d/%m/%Y %H:%M")
-        except:
-            messagebox.showerror("Error","Formato de fecha incorrecto.")
+        vars_sel = [self.listbox_vars.get(i) for i in self.listbox_vars.curselection()]
+        if not vars_sel:
             return
 
-       #uso del filtro timestamp misma funcion de seleccion de fechas 
-
-        df_filtro = self.df[(self.df['TIMESTAMP'] >= inicio_dt) & (self.df['TIMESTAMP'] <= fin_dt)]
-
-        if df_filtro.empty:
-            messagebox.showwarning("Sin datos","No se encontraron datos en ese rango.")
+        self.df_filtrado = self.obtener_filtro()
+        if self.df_filtrado.empty:
             return
 
-        fig = px.line(df_filtro,x="TIMESTAMP",y=variables, title="Variables seleccionadas")
+        self.ax.clear()
+        for v in vars_sel:
+            self.ax.plot(self.df_filtrado["TIMESTAMP"],
+                         self.df_filtrado[v], label=v)
+
+        self.ax.legend(fontsize=8)
+        self.fig.autofmt_xdate()
+        self.canvas.draw()
+
+        self.actualizar_tabla(self.df_filtrado[["TIMESTAMP"] + vars_sel].head(200))
+
+    def grafica_plotly(self):
+        if self.df_filtrado is None or self.df_filtrado.empty:
+            messagebox.showwarning("Aviso", "No hay datos para graficar")
+            return
+
+        vars_sel = [self.listbox_vars.get(i) for i in self.listbox_vars.curselection()]
+        fig = px.line(self.df_filtrado, x="TIMESTAMP", y=vars_sel)
         fig.show()
 
-        #Error de exportacion }
+    def actualizar_tabla(self, df):
+        self.tree.delete(*self.tree.get_children())
+        self.tree["columns"] = list(df.columns)
+        for col in df.columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=120)
+        for _, row in df.iterrows():
+            self.tree.insert("", END, values=list(row))
 
-    def exportar(self):
-        if self.df is None:
-            messagebox.showerror("Error","No hay datos cargados.")
+    def exportar_csv(self):
+        if self.df_filtrado is None:
+            messagebox.showwarning("Aviso", "No hay datos filtrados")
             return
-        
-        nombre = "datos_filtrados"
-        self.df.to_csv(nombre + ".csv",index=False)
-        messagebox.showinfo("Éxito", f"Archivo '{nombre}.csv' guardado correctamente.")
+        file = asksaveasfilename(defaultextension=".csv")
+        if file:
+            self.df_filtrado.to_csv(file, index=False)
+            messagebox.showinfo("Exportado", "CSV guardado correctamente")
 
-#Ejecucion de la aplicacion 
+    def toggle_dark(self):
+        self.dark_mode = not self.dark_mode
+        bg = "#2e2e2e" if self.dark_mode else "#ffffff"
+        self.sidebar.configure(bg=bg)
+        self.main.configure(bg=bg)
+        self.root.configure(bg=bg)
 
-root = Tk() #apararecer la ventana
-app = App(root)#llamar a la app
-root.mainloop() #consulta continua de la aplicacion 
+#--------------------Inicio aplicacion----------
+
+root = Tk()
+app = App(root)
+root.mainloop()
+

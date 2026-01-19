@@ -9,3 +9,36 @@ Version 1.
 x Error en la seleccion de datos 
 x Error en la exportacion de datos 
 
+Version 2. 
+
+-Restructuracion de codigo
+    #linea 16 funciones para preprocesamiento
+    def selecion_datos()
+    #30 def limpieza(datos)
+    #35 def preprocesamiento(df)
+    #57 Grupos de parametros
+    #68 interfaz Tkinter
+    #80 panel lado derecho 
+    # 102 configuracion fecha alineacion 
+     y despliegue de calendario 
+    # 143 configuracion modo oscuro y Previsualizacion (grafica con Canvas 
+    tabla copn tree)
+    # 158 funcionamiento 
+        def cargar_csv(self)
+        def actualizar_variables(self,event)
+        def obtener_filtro(self)
+        def previsualziar(self)
+        def grafica_plotly(self)
+        def actualizar_tabla(self,df)
+        def exportar_csv(self)
+        def tonggle_dark(self)
+    # 248 inicio aplicacion 
+
+-Tema oscuro (funcion Tongle dark)
+-Cambio en la tipografica y alineacion de los datos
+-Previsualizacion de datos y tabla en lado derecho (Matplotlib)
+
+x Error en la aplicacion correcta del tema oscuro 
+x Error en la actualizacion de tabla y fecha de las previsualizaciones
+
+
