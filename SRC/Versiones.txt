@@ -42,3 +42,40 @@ x Error en la aplicacion correcta del tema oscuro
 x Error en la actualizacion de tabla y fecha de las previsualizaciones
 
 
+Version 3
+
+actualizacion de librerias 
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+import plotly.express as px
+from tkinter import *
+from tkinter import ttk
+from tkinter.filedialog import askopenfilename, asksaveasfilename
+from datetime import datetime
+import tkinter.messagebox as messagebox
+from tkcalendar import DateEntry
+import matplotlib.dates as mdates
+
+Cambios en class App:
+#75 cambios en grafica para leyendas en graficas 
+#81 adicion de consulta por paginas en la tabla 
+# 108 correccion en el filtrado de fechas:
+    correccion en la funcion de filtros 
+    se agrega la consulta manual para la tabla mediante
+    el boton consultar tabla 
+# 145 se agrega un frame para la grafica para delimitar la zona     
+# 153 Version beta para un punto de seguimiento 
+# 168 cambio en el toolbar para la grafica con matplotlib 
+# 179 se agregan botones de navegacion en la tabla
+# 191 Cambios en la funcion def actualizar_variables
+# 196 Cambios en la funcion obtener_filtro
+# 201 Cambios en la funcion previsualizar
+# 219 Version beta funcion def on_over
+# 290 Se agrega funcion def consultar_tabla 
+# 310 Se agrega funcion def actualizar_tabla
+# 325 y # 330 funciones de pagina 
+# 335 Cambios en la funcion grafica_plotly
+# 349 cambios en la funcion tonggle_dark
