@@ -79,3 +79,10 @@ Cambios en class App:
 # 325 y # 330 funciones de pagina 
 # 335 Cambios en la funcion grafica_plotly
 # 349 cambios en la funcion tonggle_dark
+
+#Version 5 Restructuracion del codigo 
+
+# 153 mejora en Hover 
+# 156,213,230,237,252, 263  actualizacion de vars_sel por self.vars_sel
+# 233 actualizacion del punto a manera de lista 
+# 277 actualizacion en creacion del punto 

@@ -71,7 +71,7 @@ groups = {
 class App:
     def __init__(self,root):
         self.root = root  #iniciamos la ventana
-        self.root.title("Visualizador de Datos Solarimétricos") #titulo de la ventana
+        self.root.title("BSRN_igf") #titulo de la ventana
         self.root.geometry("1700x950") #tamaño de la interfaz
         self.root.minsize(1600,850)
 
@@ -87,7 +87,7 @@ class App:
         self.sidebar = Frame(root, width=320, bg="#ffffff")
         self.sidebar.pack(side=LEFT, fill=Y)
 
-        Label(self.sidebar, text="Visualizador Solarimétrico",
+        Label(self.sidebar, text="BSRN_igf",
               font=("Segoe UI", 14, "bold"), bg="#ffffff").pack(pady=15)
 
         ttk.Button(self.sidebar, text="Cargar CSV", command=self.cargar_csv)\
@@ -150,20 +150,11 @@ class App:
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill=X, padx=10, pady=10)
 
-       # --- PUNTO INTELIGENTE ---
-        self.hover_point, = self.ax.plot([], [], "o", color="red", markersize=6, zorder=5)
-        self.hover_annot = self.ax.annotate(
-        "",
-        xy=(0, 0),
-        xytext=(15, 15),
-        textcoords="offset points",
-        bbox=dict(boxstyle="round", fc="w"),
-        arrowprops=dict(arrowstyle="->")
-        )   
-        self.hover_annot.set_visible(False)
-
+       # --- Punto inteligente (Hover) ---
+        self.hover_point = None
+        self.hover_annot = None
+        self.vars_sel = []
         self.canvas.mpl_connect("motion_notify_event", self.on_hover)
-
 
         frame_toolbar= Frame(self.main)
         frame_toolbar.pack(fill=X, padx=10)
@@ -217,14 +208,16 @@ class App:
         ].copy()
     
     def on_hover(self, event):
-        if self.df_filtrado is None or event.xdata is None or event.ydata is None:
-            self.hover_annot.set_visible(False)
-            self.canvas.draw_idle()
+        if (
+            self.df_filtrado is None or
+            not self.vars_sel or
+            event.inaxes != self.ax or
+            event.xdata is None or
+            self.hover_point is None or
+            self.hover_annot is None
+        ):
             return
 
-        vars_sel = [self.listbox_vars.get(i) for i in self.listbox_vars.curselection()]
-        if not vars_sel:
-            return
 
     # Convertir TIMESTAMP a formato matplotlib
         xdata = self.df_filtrado["TIMESTAMP"]
@@ -234,14 +227,14 @@ class App:
         idx = np.abs(x_num - mouse_x).argmin()
 
         x = xdata.iloc[idx]
-        y = self.df_filtrado[vars_sel[0]].iloc[idx]
+        y = self.df_filtrado[self.vars_sel[0]].iloc[idx]
 
     # Actualizar punto
-        self.hover_point.set_data(x, y)
+        self.hover_point.set_data([x], [y])
 
     # Texto tipo Plotly
         texto = x.strftime('%Y-%m-%d %H:%M')
-        for v in vars_sel:
+        for v in self.vars_sel:
             val = self.df_filtrado[v].iloc[idx]
             texto += f"\n{v}: {val:.2f}"
 
@@ -255,8 +248,8 @@ class App:
     def previsualizar(self):
         if self.df is None:
             return
-        vars_sel = [self.listbox_vars.get(i) for i in self.listbox_vars.curselection()]
-        if not vars_sel:
+        self.vars_sel = [self.listbox_vars.get(i) for i in self.listbox_vars.curselection()]
+        if not self.vars_sel:
             return
 
         df_f = self.obtener_filtro()
@@ -266,10 +259,8 @@ class App:
         self.df_filtrado = df_f
 
         self.ax.clear()
-        self.hover_point.set_data([], [])
-        self.hover_annot.set_visible(False)
 
-        for v in vars_sel:
+        for v in self.vars_sel:
             self.ax.plot(
             self.df_filtrado["TIMESTAMP"],
             self.df_filtrado[v],
@@ -282,7 +273,23 @@ class App:
             borderaxespad=0,
             fontsize=9
             )
-
+        
+    #Crear el punto 
+        
+        self.hover_point, = self.ax.plot(
+            [], [], "o",
+            color="red",
+            markersize=7,
+            zorder=10
+            ) 
+        self.hover_annot = self.ax.annotate(
+            "",
+            xy=(0, 0),
+            xytext=(15, 15),
+            textcoords="offset points",
+            bbox=dict(boxstyle="round", fc="white"),
+            arrowprops=dict(arrowstyle="->")
+        )
         self.fig.autofmt_xdate()
         self.fig.tight_layout()
         self.canvas.draw()
