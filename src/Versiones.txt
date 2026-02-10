@@ -1,0 +1,81 @@
+Desarrollo de aplicacion 
+
+Version 1.
+
+-Se realiza la interfaz mediante Tkinter 
+-Consulta de datos cargados mediante Excel
+-Graficos obtenidos mediante pyplot 
+
+x Error en la seleccion de datos 
+x Error en la exportacion de datos 
+
+Version 2. 
+
+-Restructuracion de codigo
+    #linea 16 funciones para preprocesamiento
+    def selecion_datos()
+    #30 def limpieza(datos)
+    #35 def preprocesamiento(df)
+    #57 Grupos de parametros
+    #68 interfaz Tkinter
+    #80 panel lado derecho 
+    # 102 configuracion fecha alineacion 
+     y despliegue de calendario 
+    # 143 configuracion modo oscuro y Previsualizacion (grafica con Canvas 
+    tabla copn tree)
+    # 158 funcionamiento 
+        def cargar_csv(self)
+        def actualizar_variables(self,event)
+        def obtener_filtro(self)
+        def previsualziar(self)
+        def grafica_plotly(self)
+        def actualizar_tabla(self,df)
+        def exportar_csv(self)
+        def tonggle_dark(self)
+    # 248 inicio aplicacion 
+
+-Tema oscuro (funcion Tongle dark)
+-Cambio en la tipografica y alineacion de los datos
+-Previsualizacion de datos y tabla en lado derecho (Matplotlib)
+
+x Error en la aplicacion correcta del tema oscuro 
+x Error en la actualizacion de tabla y fecha de las previsualizaciones
+
+
+Version 3
+
+actualizacion de librerias 
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+import plotly.express as px
+from tkinter import *
+from tkinter import ttk
+from tkinter.filedialog import askopenfilename, asksaveasfilename
+from datetime import datetime
+import tkinter.messagebox as messagebox
+from tkcalendar import DateEntry
+import matplotlib.dates as mdates
+
+Cambios en class App:
+#75 cambios en grafica para leyendas en graficas 
+#81 adicion de consulta por paginas en la tabla 
+# 108 correccion en el filtrado de fechas:
+    correccion en la funcion de filtros 
+    se agrega la consulta manual para la tabla mediante
+    el boton consultar tabla 
+# 145 se agrega un frame para la grafica para delimitar la zona     
+# 153 Version beta para un punto de seguimiento 
+# 168 cambio en el toolbar para la grafica con matplotlib 
+# 179 se agregan botones de navegacion en la tabla
+# 191 Cambios en la funcion def actualizar_variables
+# 196 Cambios en la funcion obtener_filtro
+# 201 Cambios en la funcion previsualizar
+# 219 Version beta funcion def on_over
+# 290 Se agrega funcion def consultar_tabla 
+# 310 Se agrega funcion def actualizar_tabla
+# 325 y # 330 funciones de pagina 
+# 335 Cambios en la funcion grafica_plotly
+# 349 cambios en la funcion tonggle_dark
