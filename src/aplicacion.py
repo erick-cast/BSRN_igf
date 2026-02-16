@@ -139,7 +139,7 @@ class App:
         ttk.Button(self.sidebar,text="Consultar tabla", command=self.consultar_tabla).pack(pady=5)
         ttk.Button(self.sidebar,text="Graficar", command=self.grafica_plotly).pack(pady=8)
         ttk.Button(self.sidebar,text="Exportar CSV", command=self.exportar_csv).pack(pady=5) 
-        ttk.Button(self.sidebar,text="Nueva consulta", command=self.exportar_csv).pack(pady=20)
+        ttk.Button(self.sidebar,text="Nueva consulta", command=self.nueva_consulta).pack(pady=20)
 
         #---------Configuracion----------
  
@@ -283,7 +283,7 @@ class App:
                                 self.df_filtrado[v],label=v)
             color = line.get_color()
 
-            point = self.ax.plot( [], [], "o", color=color,
+            point, = self.ax.plot( [], [], "o", color=color,
                                  markersize=7,zorder=10)
 
             annot = self.ax.annotate("",xy=(0, 0),xytext=(15, 15),
@@ -295,7 +295,7 @@ class App:
             self.hover_point[v] = point
             self.hover_annot[v] = annot
 
-            self. estado = {"grupo":self.combo.get(),"variables":self.vars_sel.copy(),
+            self.estado = {"grupo":self.combo.get(),"variables":self.vars_sel.copy(),
                             "df_filtrado": self.df_filtrado,}
 
       
