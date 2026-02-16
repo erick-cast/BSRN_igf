@@ -69,11 +69,15 @@ groups = {
 #-----------------Insertamos la interfaz de tkinter-----------
 
 class App:
-    def __init__(self,root):
-        self.root = root  #iniciamos la ventana
-        self.root.title("BSRN_igf") #titulo de la ventana
-        self.root.geometry("1700x950") #tamaño de la interfaz
-        self.root.minsize(1600,850)
+    contador = 1
+    def __init__(self,notebook):
+
+        self.notebook = notebook
+        self.root = Frame(self.notebook)
+        self.notebook.add(self.root,text=f"consulta{App.contador}")
+        self.notebook.bind("<<NotebookTabChanged>>",self.on_tab_change)
+        self.notebook.select(self.root)
+        App.contador +=1
 
         self.df = None
         self.df_filtrado = None
@@ -84,7 +88,7 @@ class App:
 
 
         #-----------Panel derecho-----------
-        self.sidebar = Frame(root, width=320, bg="#ffffff")
+        self.sidebar = Frame(self.root, width=320, bg="#ffffff")
         self.sidebar.pack(side=LEFT, fill=Y)
 
         Label(self.sidebar, text="BSRN_igf",
@@ -135,9 +139,11 @@ class App:
         ttk.Button(self.sidebar,text="Consultar tabla", command=self.consultar_tabla).pack(pady=5)
         ttk.Button(self.sidebar,text="Graficar", command=self.grafica_plotly).pack(pady=8)
         ttk.Button(self.sidebar,text="Exportar CSV", command=self.exportar_csv).pack(pady=5) 
+        ttk.Button(self.sidebar,text="Nueva consulta", command=self.exportar_csv).pack(pady=20)
+
         #---------Configuracion----------
  
-        self.main = Frame(root, bg="#eef2f7")
+        self.main = Frame(self.root, bg="#eef2f7")
         self.main.pack(side=LEFT, fill=BOTH, expand=True)
 
         Button(self.main, text="🌙", command=self.toggle_dark).pack(anchor="ne", padx=8, pady=4)
@@ -151,9 +157,10 @@ class App:
         self.canvas.get_tk_widget().pack(fill=X, padx=10, pady=10)
 
        # --- Punto inteligente (Hover) ---
-        self.hover_point = None
-        self.hover_annot = None
+        self.hover_point = {}
+        self.hover_annot = {}
         self.vars_sel = []
+        self.estado = {}
         self.canvas.mpl_connect("motion_notify_event", self.on_hover)
 
         frame_toolbar= Frame(self.main)
@@ -212,37 +219,46 @@ class App:
             self.df_filtrado is None or
             not self.vars_sel or
             event.inaxes != self.ax or
-            event.xdata is None or
-            self.hover_point is None or
-            self.hover_annot is None
+            event.xdata is None 
         ):
             return
 
-
-    # Convertir TIMESTAMP a formato matplotlib
         xdata = self.df_filtrado["TIMESTAMP"]
         x_num = mdates.date2num(xdata)
-
-        mouse_x = event.xdata
-        idx = np.abs(x_num - mouse_x).argmin()
-
+        idx = np.abs(x_num - event.xdata).argmin()
         x = xdata.iloc[idx]
-        y = self.df_filtrado[self.vars_sel[0]].iloc[idx]
 
-    # Actualizar punto
-        self.hover_point.set_data([x], [y])
-
-    # Texto tipo Plotly
-        texto = x.strftime('%Y-%m-%d %H:%M')
         for v in self.vars_sel:
-            val = self.df_filtrado[v].iloc[idx]
-            texto += f"\n{v}: {val:.2f}"
+            y = self.df_filtrado[v].iloc[idx]
+            point = self.hover_point[v]
+            annot = self.hover_annot[v]
+            point.set_data([x],[y])
+            texto = f"{x.strftime('%Y-%m-%d %H:%M')}\n{v}:{y:.2f}"
+            annot.xy = (x,y)
+            annot.set_text(texto)
+            annot.set_visible(True)
+        self.canvas.draw_idle()    
 
-        self.hover_annot.xy = (x, y)
-        self.hover_annot.set_text(texto)
-        self.hover_annot.set_visible(True)
-
-        self.canvas.draw_idle()
+    def on_tab_change(self,event):
+        tab_actual = event.widget.select()
+        if tab_actual != event.widget.select():
+            return
+        if not self.estado:
+            return
+        #restauracion de grupo
+        grupo = self.estado["grupo"]
+        self.combo.set(grupo)
+        #restauracion de variables 
+        self.listbox_vars.delete(0,END)
+        for v in groups[grupo]:
+            self.listbox_vars.insert(END,v)
+        self.vars_sel = self.estado["variables"]
+        for i,v in enumerate(groups[grupo]):
+            if v in self.vars_sel:
+                self.listbox_vars.selection_set(i)
+        self.df_filtrado = self.estado["df_filtrado"]
+        #restaurar la grafica 
+        self.previsualizar()            
 
 
     def previsualizar(self):
@@ -259,41 +275,45 @@ class App:
         self.df_filtrado = df_f
 
         self.ax.clear()
+        self.hover_point.clear()
+        self.hover_annot.clear()
 
         for v in self.vars_sel:
-            self.ax.plot(
-            self.df_filtrado["TIMESTAMP"],
-            self.df_filtrado[v],
-            label=v
-            )
+            line,= self.ax.plot(self.df_filtrado["TIMESTAMP"],
+                                self.df_filtrado[v],label=v)
+            color = line.get_color()
 
+            point = self.ax.plot( [], [], "o", color=color,
+                                 markersize=7,zorder=10)
+
+            annot = self.ax.annotate("",xy=(0, 0),xytext=(15, 15),
+                                     textcoords="offset points",
+                                     bbox=dict(boxstyle="round", fc="white"),
+                                     arrowprops=dict(arrowstyle="->"))
+            
+            annot.set_visible(False)
+            self.hover_point[v] = point
+            self.hover_annot[v] = annot
+
+            self. estado = {"grupo":self.combo.get(),"variables":self.vars_sel.copy(),
+                            "df_filtrado": self.df_filtrado,}
+
+      
         self.ax.legend(
             loc="upper left",
             bbox_to_anchor=(1.02, 1),
             borderaxespad=0,
             fontsize=9
             )
-        
-    #Crear el punto 
-        
-        self.hover_point, = self.ax.plot(
-            [], [], "o",
-            color="red",
-            markersize=7,
-            zorder=10
-            ) 
-        self.hover_annot = self.ax.annotate(
-            "",
-            xy=(0, 0),
-            xytext=(15, 15),
-            textcoords="offset points",
-            bbox=dict(boxstyle="round", fc="white"),
-            arrowprops=dict(arrowstyle="->")
-        )
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
+        self.ax.xaxis.set_major_locator(
+        mdates.AutoDateLocator()
+        )  
+
         self.fig.autofmt_xdate()
         self.fig.tight_layout()
-        self.canvas.draw()
-
+        self.canvas.draw()  
+        
     def consultar_tabla(self):
         if self.df is None:
             messagebox.showwarning("Aviso", "No hay datos cargados")
@@ -353,6 +373,9 @@ class App:
             self.df_filtrado.to_csv(file, index=False)
             messagebox.showinfo("Exportado", "CSV guardado correctamente")
 
+    def nueva_consulta(self):
+        App(self.notebook)
+
     def toggle_dark(self):
         self.dark_mode = not self.dark_mode
         bg = "#2b2b2b" if self.dark_mode else "#ffffff"
@@ -365,6 +388,10 @@ class App:
 #--------------------Inicio aplicacion----------
 
 root = Tk()
-App(root)
+root.title("BSRN_igf")
+root.geometry("1700x950")
+root.minsize(1700,950)
+notebook = ttk.Notebook(root)
+notebook.pack(fill = "both",expand=True)
+App(notebook)
 root.mainloop()
-
