@@ -74,15 +74,15 @@ class App:
 
         self.notebook = notebook
         self.root = Frame(self.notebook)
+        self.root.app = self
+        self.root.estado ={}
         self.notebook.add(self.root,text=f"consulta{App.contador}")
-        self.notebook.bind("<<NotebookTabChanged>>",self.on_tab_change)
         self.notebook.select(self.root)
         App.contador +=1
 
         self.df = None
         self.df_filtrado = None
         self.dark_mode = False 
-        
         self.pagina = 0
         self.filas_por_pagina = 500
 
@@ -239,26 +239,68 @@ class App:
             annot.set_visible(True)
         self.canvas.draw_idle()    
 
+
+    
+    def guardar_estado(self):
+
+        if self.df_filtrado is None:
+            return
+
+        self.root.estado = {
+
+        "grupo": self.combo.get(),
+
+        "variables":
+        [self.listbox_vars.get(i)
+        for i in self.listbox_vars.curselection()],
+
+        "fecha_inicio": self.fecha_inicio.get_date(),
+
+        "fecha_fin": self.fecha_fin.get_date(),
+
+        "hora_ini": self.hora_ini.get(),
+
+        "min_ini": self.min_ini.get(),
+
+        "hora_fin": self.hora_fin.get(),
+
+        "min_fin": self.min_fin.get(),
+
+        "df_filtrado": self.df_filtrado
+
+    } 
+
     def on_tab_change(self,event):
-        tab_actual = event.widget.select()
-        if tab_actual != event.widget.select():
+        tab = event.widget.nametowidget(event.widget.select())
+
+        if not hasattr(tab,"estado"):
             return
-        if not self.estado:
+        estado = tab.estado
+
+        if not estado:
             return
-        #restauracion de grupo
-        grupo = self.estado["grupo"]
-        self.combo.set(grupo)
-        #restauracion de variables 
-        self.listbox_vars.delete(0,END)
-        for v in groups[grupo]:
-            self.listbox_vars.insert(END,v)
-        self.vars_sel = self.estado["variables"]
-        for i,v in enumerate(groups[grupo]):
-            if v in self.vars_sel:
+       # restaurar grupo
+        self.combo.set(estado["grupo"])
+        self.actualizar_variables(None)
+
+        # restaurar variables
+        for i,v in enumerate(groups[estado["grupo"]]):
+            if v in estado["variables"]:
                 self.listbox_vars.selection_set(i)
-        self.df_filtrado = self.estado["df_filtrado"]
-        #restaurar la grafica 
-        self.previsualizar()            
+
+        # restaurar fechas
+        self.fecha_inicio.set_date(estado["fecha_inicio"])
+        self.hora_ini.delete(0,END)
+        self.hora_ini.insert(0,estado["hora_ini"])
+        self.min_ini.delete(0,END)
+        self.min_ini.insert(0,estado["min_ini"])
+        self.fecha_fin.set_date(estado["fecha_fin"])
+        self.hora_fin.delete(0,END)
+        self.hora_fin.insert(0,estado["hora_fin"])
+        self.min_fin.delete(0,END)
+        self.min_fin.insert(0,estado["min_fin"])
+        self.df_filtrado = estado["df_filtrado"]
+        self.previsualizar()          
 
 
     def previsualizar(self):
@@ -294,11 +336,7 @@ class App:
             annot.set_visible(False)
             self.hover_point[v] = point
             self.hover_annot[v] = annot
-
-            self.estado = {"grupo":self.combo.get(),"variables":self.vars_sel.copy(),
-                            "df_filtrado": self.df_filtrado,}
-
-      
+     
         self.ax.legend(
             loc="upper left",
             bbox_to_anchor=(1.02, 1),
@@ -313,6 +351,7 @@ class App:
         self.fig.autofmt_xdate()
         self.fig.tight_layout()
         self.canvas.draw()  
+        self.guardar_estado()
         
     def consultar_tabla(self):
         if self.df is None:
@@ -333,6 +372,7 @@ class App:
 
         self.pagina = 0
         self.actualizar_tabla()
+        self.guardar_estado()
 
     def actualizar_tabla(self):
         self.tree.delete(*self.tree.get_children())
@@ -386,6 +426,38 @@ class App:
         self.root.configure(bg=bg)
 
 #--------------------Inicio aplicacion----------
+def cambio_tab(event):
+    notebook = event.widget
+    tab = notebook.nametowidget(notebook.select())
+    if not hasattr(tab,"app"):
+        return
+    app = tab.app
+    estado = tab.estado
+    if not estado:
+        return
+    app.combo.set(estado["grupo"])
+    app.actualizar_variables(None)
+    app.listbox_vars.selection_clear(0, "end")
+
+    vars_grupo = groups[estado["grupo"]]
+
+    for i in range(len(vars_grupo)):
+
+        if vars_grupo[i] in estado["variables"]:
+            app.listbox_vars.selection_set(i)
+    app.fecha_inicio.set_date(estado["fecha_inicio"])
+    app.fecha_fin.set_date(estado["fecha_fin"])
+    app.hora_ini.delete(0,END)
+    app.hora_ini.insert(0,estado["hora_ini"])
+    app.min_ini.delete(0,END)
+    app.min_ini.insert(0,estado["min_ini"])
+    app.hora_fin.delete(0,END)
+    app.hora_fin.insert(0,estado["hora_fin"])
+    app.min_fin.delete(0,END)
+    app.min_fin.insert(0,estado["min_fin"])
+    app.df_filtrado = estado["df_filtrado"]
+    app.previsualizar()
+
 
 root = Tk()
 root.title("BSRN_igf")
@@ -393,5 +465,6 @@ root.geometry("1700x950")
 root.minsize(1700,950)
 notebook = ttk.Notebook(root)
 notebook.pack(fill = "both",expand=True)
+notebook.bind("<<NotebookTabChanged>>", cambio_tab)
 App(notebook)
 root.mainloop()
