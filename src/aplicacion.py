@@ -35,6 +35,7 @@ def limpieza(df):
 #----------------preprocesamiento de datos------------- 
 def preprocesamiento(df):
    #Convertimos las columna timestamp Formato
+
    df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'],dayfirst = True)
     #Convertimos los datos a numericos 
    numeric_cols = df.columns.drop('TIMESTAMP')
@@ -49,6 +50,10 @@ def preprocesamiento(df):
    if set(['GH_CALC_Avg','GLOBAL_Avg']).issubset(df.columns):
        df['dif_GH_CALC_GLOBAL'] = df['GH_CALC_Avg']-df['GLOBAL_Avg']
        df['ratio_GH_CALC_GLOBAL']=df['GH_CALC_Avg']/df['GLOBAL_Avg']
+       df['abs_dif_GH_CALC_GLOBAL'] = abs(df['dif_GH_CALC_GLOBAL'])
+       df['pct_dif_GH_CALC_GLOBAL'] = np.where(
+           df['GLOBAL_Avg'] !=0, (df['dif_GH_CALC_GLOBAL']/df['GLOBAL_Avg'])*100,np.nan)
+       
 
    if set(['DIFFUSE_Avg', 'DIRECT_Avg']).issubset(df.columns):
        df['sum_SW'] = df['DIFFUSE_Avg'] +df['DIRECT_Avg']*np.cos(np.radians(df['ZenDeg']))
@@ -62,7 +67,7 @@ groups = {
     "3. Balance de onda larga": ["DOWNWARD_Avg","UPWARD_LW_Avg","DWIRTEMP_Avg","UWIRTEMP_Avg","CRPTemp_Avg"],
     "4. Meteorología": ["CRPTemp_Avg","RELATIVE_HUMIDITY_Avg","PRESSURE_Avg","DEW_POINT_Avg"],
     "5. Ultravioleta": ["UVB_Avg","UVTEMP_Avg","UVSIGNAL_Avg"],
-    "6. Dispersión": ["dif_GH_CALC_GLOBAL","ratio_GH_CALC_GLOBAL","sum_SW"]
+    "6. Dispersión": ["dif_GH_CALC_GLOBAL","abs_dif_GH_CALC_GLOBAL","pct_dif_GH_CALC_GLOBAL","ratio_GH_CALC_GLOBAL","sum_SW"]
 }
 
 
